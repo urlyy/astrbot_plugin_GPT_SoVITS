@@ -83,8 +83,19 @@ class GPTSoVITSPlugin(Star):
         res = await self.service.inference(combined_text)
         if not bool(res):
             return
-        chain.clear()
-        chain.append(self._to_record(res))
+        # 暂存语音，等待原始文字发送完成后再单独发送。
+        event.set_extra("gsv_pending_record", self._to_record(res))
+
+    @filter.after_message_sent()
+    async def send_voice_after_text(self, event: AstrMessageEvent):
+        """在原始文字发送完成后补发语音。"""
+        record = event.get_extra("gsv_pending_record")
+        if not record:
+            return
+
+        # event.send() 也可能触发 after_message_sent，发送前清空以避免循环。
+        event.set_extra("gsv_pending_record", None)
+        await event.send(event.chain_result([record]))
 
     @filter.command("说", alias={"gsv", "GSV"})
     async def on_command(self, event: AstrMessageEvent):
