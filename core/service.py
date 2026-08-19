@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from astrbot.api import logger
@@ -5,6 +6,11 @@ from astrbot.api import logger
 from .client import GSVApiClient, GSVRequestResult
 from .config import PluginConfig
 from .local_data import LocalDataManager
+
+
+TTS_TERMINOLOGY = {
+    "A-SOUL": "诶叟",
+}
 
 
 class GPTSoVITSService:
@@ -18,6 +24,18 @@ class GPTSoVITSService:
         self.default_params = config.default_params
         self.client = client
         self.local_data = local_data
+
+    @staticmethod
+    def _replace_tts_terminology(text: str) -> str:
+        """替换仅用于语音合成的读音术语，不修改原始回复文本。"""
+        for term, pronunciation in TTS_TERMINOLOGY.items():
+            text = re.sub(
+                re.escape(term),
+                lambda _match, value=pronunciation: value,
+                text,
+                flags=re.IGNORECASE,
+            )
+        return text
 
     async def load_model(self):
         if self.cfg.gpt_path:
@@ -42,7 +60,7 @@ class GPTSoVITSService:
         """TTS 推理"""
         params = self.default_params.copy()
         if text:
-            params["text"] = text
+            params["text"] = self._replace_tts_terminology(text)
 
         if extra_params:
             filtered_params = {
