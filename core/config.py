@@ -1,6 +1,7 @@
 # config.py
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Mapping, MutableMapping
 from pathlib import Path, PureWindowsPath
@@ -173,19 +174,25 @@ class PluginConfig(ConfigNode):
 
     @staticmethod
     def normalize_path(p: str) -> str:
+        """Normalize either slash style without mangling foreign absolute paths."""
         if not p:
             return p
         path_text = p.strip()
         if not path_text:
             return path_text
 
+        # Keep Windows absolute paths usable when the GPT-SoVITS service runs on
+        # Windows, even if this plugin itself is running on another platform.
         match = re.search(r"([A-Za-z]:[\\/].*)$", path_text)
         if match and PureWindowsPath(match.group(1)).is_absolute():
-            return match.group(1)
+            return str(PureWindowsPath(match.group(1)))
 
         if PureWindowsPath(path_text).is_absolute():
-            return path_text
+            return str(PureWindowsPath(path_text))
 
+        # pathlib only treats the native separator as a separator on POSIX.
+        # Accept paths copied from either Windows or Linux in all path fields.
+        path_text = path_text.replace("\\", os.sep).replace("/", os.sep)
         path = Path(path_text).expanduser()
         if path.is_absolute():
             return str(path)

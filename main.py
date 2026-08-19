@@ -10,8 +10,6 @@ from astrbot.core.platform import AstrMessageEvent
 
 from .core.client import GSVApiClient, GSVRequestResult
 from .core.config import PluginConfig
-from .core.emotion import EmotionJudger
-from .core.entry import EntryManager
 from .core.local_data import LocalDataManager
 from .core.service import GPTSoVITSService
 
@@ -21,9 +19,7 @@ class GPTSoVITSPlugin(Star):
         super().__init__(context)
         self.cfg = PluginConfig(config, context)
         self.local_data = LocalDataManager(self.cfg)
-        self.entry_mgr = EntryManager(self.cfg)
         self.client = GSVApiClient(self.cfg)
-        self.judger = EmotionJudger(self.cfg)
         self.service = GPTSoVITSService(self.cfg, self.client, self.local_data)
 
     async def initialize(self):
@@ -48,22 +44,6 @@ class GPTSoVITSPlugin(Star):
         b64 = base64.urlsafe_b64encode(res.data).decode()
         return Record.fromBase64(b64)
 
-
-    async def _get_emotion_params(
-        self, event: AstrMessageEvent, text: str
-    ) -> dict | None:
-        entry = None
-
-        if self.cfg.judge.enabled_llm:
-            labels = self.entry_mgr.get_names()
-            emotion = await self.judger.judge_emotion(event, text=text, labels=labels)
-            if emotion:
-                entry = self.entry_mgr.get_entry(emotion)
-
-        if entry is None:
-            entry = self.entry_mgr.match_entry(text)
-
-        return entry.to_params() if entry else None
 
     @filter.on_decorating_result(priority=14)
     async def on_decorating_result(self, event: AstrMessageEvent):
@@ -100,8 +80,7 @@ class GPTSoVITSPlugin(Star):
         if len(combined_text) > cfg.max_msg_len:
             return
 
-        params = await self._get_emotion_params(event, combined_text)
-        res = await self.service.inference(combined_text, extra_params=params)
+        res = await self.service.inference(combined_text)
         if not bool(res):
             return
         chain.clear()
@@ -138,8 +117,7 @@ class GPTSoVITSPlugin(Star):
             message(string): 要讲的话
         """
         try:
-            params = await self._get_emotion_params(event, message)
-            res = await self.service.inference(message, extra_params=params)
+            res = await self.service.inference(message)
             if not bool(res):
                 return res.error
             seg = self._to_record(res)

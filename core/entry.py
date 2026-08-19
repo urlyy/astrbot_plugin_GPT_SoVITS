@@ -24,10 +24,9 @@ class EmotionEntry(ConfigNode):
         self.ref_audio_path = PluginConfig.normalize_path(self.ref_audio_path)
 
     def to_params(self) -> dict[str, Any]:
+        # 情绪条目只调整节奏。参考音频、提示词和语言始终使用
+        # default_params 中配置的固定值，避免情绪切换音色。
         return {
-            "ref_audio_path": self.ref_audio_path,
-            "prompt_text": self.prompt_text,
-            "prompt_lang": self.prompt_lang,
             "speed_factor": self.speed_factor,
             "fragment_interval": self.fragment_interval,
         }
