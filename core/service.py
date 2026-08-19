@@ -9,7 +9,7 @@ from .local_data import LocalDataManager
 
 
 TTS_TERMINOLOGY = {
-    "A-SOUL": "诶叟",
+    "A-SOUL": "诶-叟",
 }
 
 
